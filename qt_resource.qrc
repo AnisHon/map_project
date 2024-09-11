@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/road_vector">
+        <file>resource/tug_map.xml</file>
+    </qresource>
+</RCC>
