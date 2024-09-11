@@ -16,6 +16,8 @@ public:
 
     void addTag(const QString &k, const QString &v);
 
+    bool contain(const QString &k) const;
+
 public:
     QString id;
     QVector<QPointF> paths;

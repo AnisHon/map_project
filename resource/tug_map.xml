@@ -674,7 +674,7 @@
   <nd ref="3041022246"/>
   <nd ref="3041022247"/>
   <nd ref="3041022244"/>
-  <tag k="amenity" v="university"/>
+  <tag k="amenity_" v="university"/>
   <tag k="name" v="天津工业大学"/>
   <tag k="name:en" v="Tiangong University"/>
   <tag k="name:zh" v="天津工业大学"/>
@@ -1346,6 +1346,9 @@
   <nd ref="5563656656"/>
   <nd ref="5563656657"/>
   <nd ref="5563656638"/>
+  <tag k="name" v="镜湖"/>
+  <tag k="natural" v="water"/>
+  <tag k="water" v="pond"/>
  </way>
  <way id="746887471" visible="true" version="2" changeset="130359491" timestamp="2022-12-22T06:52:14Z" user="Supaplex" uid="274857">
   <nd ref="6989118608"/>
@@ -1496,7 +1499,7 @@
   <nd ref="9262976969"/>
   <nd ref="9262976952"/>
   <tag k="building" v="yes"/>
-  <tag k="name" v="天津工业大学管理学院"/>
+<!--  <tag k="name" v="天津工业大学管理学院"/>-->
  </way>
 <!-- <way id="1003876310" visible="true" version="1" changeset="113931848" timestamp="2021-11-18T07:50:33Z" user="shutdown00" uid="13402096">-->
 

@@ -39,6 +39,16 @@ void MapReader::readNode(const QDomNodeList &nodes) {
         auto lat = node.attributes().namedItem("lat").toAttr().value();
         auto lon = node.attributes().namedItem("lon").toAttr().value();
         nodes_.insert(id, MapNode(id, lon, lat));
+        if (node.hasChildNodes()) {
+            WayNode wayNode(id);
+            wayNode.addPath(MapNode(id, lon, lat).getCoordinates());
+            for (int j = 0; j < node.childNodes().length(); ++j) {
+                const auto &n = node.childNodes().at(j);
+                wayNode.addTag(n.toElement().attribute("k"), n.toElement().attribute("v"));
+//                 n.toElement().attribute("k") << n.toElement().attribute("v");
+            }
+            ways_.emplaceBack(wayNode);
+        }
     }
 }
 

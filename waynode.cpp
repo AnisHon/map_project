@@ -13,3 +13,7 @@ void WayNode::addPath(QPointF point) {
 void WayNode::addTag(const QString &k, const QString &v) {
     tags.insert(k, v);
 }
+
+bool WayNode::contain(const QString &k) const {
+    return tags.find(k) != tags.end();
+}

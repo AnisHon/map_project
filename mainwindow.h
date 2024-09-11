@@ -6,6 +6,7 @@
 #include <QVector>
 #include "waynode.h"
 #include "mapreader.h"
+#include "coordinate_transformation.h"
 QT_BEGIN_NAMESPACE
 namespace Ui {
 class MainWindow;
@@ -34,12 +35,18 @@ private:
 
     void drawBuilding(const WayNode &node);
 
+    bool eventFilter(QObject *watched, QEvent *event) override;
+
+    void mouseEvent(QEvent *event);
+    void wheelEvent(QEvent *event);
+
 private:
     Ui::MainWindow *ui;
     QGraphicsScene *scene;
     QVector<WayNode> ways;
     double scale;
-
+    QColor color;
+    Transformer transformer;
 
 };
 #endif // MAINWINDOW_H
