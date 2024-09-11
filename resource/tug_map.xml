@@ -1476,9 +1476,6 @@
   <nd ref="9262976950"/>
   <nd ref="9262976951"/>
   <nd ref="9262976943"/>
-  <tag k="area" v="yes"/>
- </way>
- <way id="1003876310" visible="true" version="1" changeset="113931848" timestamp="2021-11-18T07:50:33Z" user="shutdown00" uid="13402096">
   <nd ref="9262976952"/>
   <nd ref="9262976953"/>
   <nd ref="9262976954"/>
@@ -1498,8 +1495,13 @@
   <nd ref="9262976968"/>
   <nd ref="9262976969"/>
   <nd ref="9262976952"/>
-  <tag k="area" v="yes"/>
+  <tag k="building" v="yes"/>
+  <tag k="name" v="天津工业大学管理学院"/>
  </way>
+<!-- <way id="1003876310" visible="true" version="1" changeset="113931848" timestamp="2021-11-18T07:50:33Z" user="shutdown00" uid="13402096">-->
+
+<!--  <tag k="area" v="yes"/>-->
+<!-- </way>-->
  <way id="1003876311" visible="true" version="1" changeset="113931848" timestamp="2021-11-18T07:50:33Z" user="shutdown00" uid="13402096">
   <nd ref="9262976972"/>
   <nd ref="9262976973"/>

@@ -57,7 +57,7 @@ void MapReader::readWay(const QDomNodeList &list) {
         nodeDom = node.firstChildElement("tag");
         while (!nodeDom.isNull()) {
             wayNode.addTag(nodeDom.attribute("k"), nodeDom.attribute("v"));
-            nodeDom = nodeDom.nextSiblingElement("nd");
+            nodeDom = nodeDom.nextSiblingElement("tag");
         }
         ways_.emplaceBack(wayNode);
     }
