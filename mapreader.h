@@ -25,7 +25,7 @@ private:
 
     void readNode(const QDomNodeList &node);
 
-private:
+
     QString path_;
     QMap<QString, MapNode> nodes_;
     QVector<WayNode> ways_;

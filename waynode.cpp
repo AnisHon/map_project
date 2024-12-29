@@ -2,7 +2,7 @@
 
 #include <utility>
 
-WayNode::WayNode(QString id_): id(std::move(id_)) {
+WayNode::WayNode(QString id_): id(std::move(id_)), path_ids(QVector<QString>{}) {
 
 }
 

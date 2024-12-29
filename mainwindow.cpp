@@ -8,11 +8,14 @@
 #include <QMouseEvent>
 #include <QWheelEvent>
 #include <QScrollBar>
-MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent)
+MainWindow::MainWindow(MapReader &map_reader, const Transformer &transform, QWidget *parent)
+    : QMainWindow(parent),
+    transformer(transform)
     , ui(new Ui::MainWindow) {
+
+
     ui->setupUi(this);
-    scene = new QGraphicsScene(this);
+    this->scene = new QGraphicsScene(this);
     scale = 1;
     ui->graphicsView->setScene(scene);
     ui->graphicsView->setRenderHint(QPainter::RenderHint::Antialiasing, true);
@@ -20,11 +23,11 @@ MainWindow::MainWindow(QWidget *parent)
     ui->graphicsView->viewport()->installEventFilter(this);
     ui->graphicsView->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     ui->graphicsView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    transformer = Transformer(1, {117, 39});
+
 
     auto c = this->palette().base().color();
     color = QColor(255 - c.red(), 255 - c.green(), 255 - c.blue());
-    init();
+    init(map_reader);
 
 
 }
@@ -47,6 +50,7 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
         case QEvent::Wheel:
             wheelEvent(event);
             break;
+        default: ;
     }
 
     switch (event->type()) {
@@ -56,6 +60,7 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
         case QEvent::Wheel:
             event->accept();
             return true;
+        default: ;
     }
 
     return QObject::eventFilter(watched, event);
@@ -67,7 +72,7 @@ QPointF mapToRelative(QPointF mapCoord, QPointF mapTopLeft, QPointF mapBottomRig
     relativeCoord.setY((mapCoord.y() - mapTopLeft.y()) / (mapBottomRight.y() - mapTopLeft.y()));
     return relativeCoord;
 }
-void MainWindow::wheelEvent(QEvent *event) {
+void MainWindow::wheelEvent(QEvent *event) const {
     auto e = dynamic_cast<QWheelEvent *>(event);
     if (e->angleDelta().y() < 0) {
         ui->zoomIn->click();
@@ -75,7 +80,7 @@ void MainWindow::wheelEvent(QEvent *event) {
         ui->zoomOut->click();
     }
 }
-void MainWindow::mouseEvent(QEvent *event) {
+void MainWindow::mouseEvent(QEvent *event) const {
     static bool isPressed = false;
     static QPoint lastPressed;
     auto e = dynamic_cast<QMouseEvent *>(event);
@@ -92,19 +97,19 @@ void MainWindow::mouseEvent(QEvent *event) {
         if (!isPressed) {
             return;
         }
-        int dx = e->pos().x() - lastPressed.x();
-        int dy = e->pos().y() - lastPressed.y();
+        const int dx = e->pos().x() - lastPressed.x();
+        const int dy = e->pos().y() - lastPressed.y();
         lastPressed = e->pos();
-        auto h = ui->graphicsView->horizontalScrollBar();
-        auto v = ui->graphicsView->verticalScrollBar();
+        const auto h = ui->graphicsView->horizontalScrollBar();
+        const auto v = ui->graphicsView->verticalScrollBar();
         h->setValue(-dx + h->value());
         v->setValue(-dy + v->value());
     }
 }
 
 
-void MainWindow::init() {
-    MapReader reader(":/road_vector/resource/tug_map.xml");
+void MainWindow::init(MapReader &map_reader) {
+    MapReader &reader = map_reader;
     ways = reader.getWays();
     for (const auto &item: ways) {
         if (item.contain("building")) {
@@ -140,14 +145,12 @@ void MainWindow::init() {
 
 
 
-void MainWindow::on_zoomIn_clicked() {
+void MainWindow::on_zoomIn_clicked() const {
     ui->graphicsView->scale(0.9, 0.9);
-
-
 }
 
 
-void MainWindow::on_zoomOut_clicked() {
+void MainWindow::on_zoomOut_clicked() const {
 
     ui->graphicsView->scale(1.1, 1.1);
 
@@ -170,7 +173,7 @@ void MainWindow::drawLack(const WayNode &node) {
     scene->addPolygon(poly, color, c);
 }
 
-void MainWindow::drawRoad(const WayNode &node) {
+void MainWindow::drawRoad(const WayNode &node) const {
     QPainterPath path(transformer(node.paths[0]));
     for (int i = 1; i < node.paths.size(); ++i) {
         path.lineTo(transformer(node.paths[i]));

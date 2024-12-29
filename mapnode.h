@@ -11,7 +11,6 @@ public:
     MapNode();
 
 
-public:
     QString id;
     bool visible;
     QString version;
@@ -34,7 +33,6 @@ public:
     QPointF getCoordinates() const;
 
     friend QDebug &operator<<(QDebug &os, const MapNode &nodes);
-
 
 };
 

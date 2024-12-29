@@ -18,27 +18,31 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    MainWindow(QWidget *parent = nullptr);
+    MainWindow(
+            MapReader& mapReader,
+            const Transformer &transform = Transformer(1, {117, 39}),
+            QWidget *parent = nullptr
+        );
     ~MainWindow();
 
 private slots:
-    void on_zoomIn_clicked();
+    void on_zoomIn_clicked() const;
 
-    void on_zoomOut_clicked();
+    void on_zoomOut_clicked() const;
 
 private:
-    void init();
+    void init(MapReader& map_reader);
 
     void drawLack(const WayNode &node);
 
-    void drawRoad(const WayNode &node);
+    void drawRoad(const WayNode &node) const;
 
     void drawBuilding(const WayNode &node);
 
     bool eventFilter(QObject *watched, QEvent *event) override;
 
-    void mouseEvent(QEvent *event);
-    void wheelEvent(QEvent *event);
+    void mouseEvent(QEvent *event) const;
+    void wheelEvent(QEvent *event) const;
 
 private:
     Ui::MainWindow *ui;

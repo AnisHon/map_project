@@ -4,18 +4,22 @@
 #include "mapreader.h"
 #include "mapnode.h"
 #include "coordinate_transformation.h"
+#include "MapAdjacencyList.h"
+#include <QDebug>
+
 int main(int argc, char *argv[])
 {
-    
+
     QApplication a(argc, argv);
-    MainWindow w;
-    w.show();
+
 
 
     MapReader reader(":/road_vector/resource/tug_map.xml");
-    for (const auto &item: reader.getWays()) {
+    const auto& transform = Transformer(1, {117, 39});
 
-    }
-//    return 0;
+    MapAdjacencyList adjacency{reader, transform};
+    MainWindow w(reader, transform);
+    w.show();
+
     return a.exec();
 }

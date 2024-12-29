@@ -18,8 +18,8 @@ public:
 
     bool contain(const QString &k) const;
 
-public:
     QString id;
+    QVector<QString> path_ids;
     QVector<QPointF> paths;
     QMap<QString, QString> tags;
 
