@@ -2,17 +2,30 @@
 #include "./ui_mainwindow.h"
 #include "coordinate_transformation.h"
 
-#include <QPainterPath>
 #include <QGraphicsItem>
 #include <QEvent>
-#include <QMouseEvent>
+
 #include <QWheelEvent>
 #include <QScrollBar>
-MainWindow::MainWindow(QWidget *parent)
+#include <QMessageBox>
+
+#include <QGraphicsSceneMouseEvent>
+
+#include "distance_utils.h"
+
+MainWindow::MainWindow(MapReader &map_reader, const Transformer &transform, QWidget *parent)
     : QMainWindow(parent)
+    , transformer(transform)
+    , map_reader{map_reader}
+    , path{nullptr}
+    , adjacency_list{map_reader, transform}
+    , addOriginalEnabled(false)
+    , addDestinationEnabled(false)
     , ui(new Ui::MainWindow) {
+
+
     ui->setupUi(this);
-    scene = new QGraphicsScene(this);
+    this->scene = new QGraphicsScene(this);
     scale = 1;
     ui->graphicsView->setScene(scene);
     ui->graphicsView->setRenderHint(QPainter::RenderHint::Antialiasing, true);
@@ -20,11 +33,14 @@ MainWindow::MainWindow(QWidget *parent)
     ui->graphicsView->viewport()->installEventFilter(this);
     ui->graphicsView->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     ui->graphicsView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    transformer = Transformer(2, {118, 40});
+
+
     auto c = this->palette().base().color();
     color = QColor(255 - c.red(), 255 - c.green(), 255 - c.blue());
-    init();
+    init(map_reader);
 
+    ui->originBtn->setDisabled(true);
+    ui->destBtn->setDisabled(true);
 
 }
 
@@ -40,12 +56,14 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
         case QEvent::MouseButtonPress:
 
         case QEvent::MouseButtonRelease:
+            this->markPosition(dynamic_cast<QGraphicsSceneMouseEvent*>(event));
         case QEvent::MouseMove:
             mouseEvent(event);
             break;
         case QEvent::Wheel:
             wheelEvent(event);
             break;
+        default: ;
     }
 
     switch (event->type()) {
@@ -55,18 +73,19 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
         case QEvent::Wheel:
             event->accept();
             return true;
+        default: ;
     }
 
     return QObject::eventFilter(watched, event);
 }
 
-QPointF mapToRelative(QPointF mapCoord, QPointF mapTopLeft, QPointF mapBottomRight) {
+QPointF mapToRelative(const QPointF mapCoord, const QPointF mapTopLeft, QPointF mapBottomRight) {
     QPointF relativeCoord;
     relativeCoord.setX((mapCoord.x() - mapTopLeft.x()) / (mapBottomRight.x() - mapTopLeft.x()));
     relativeCoord.setY((mapCoord.y() - mapTopLeft.y()) / (mapBottomRight.y() - mapTopLeft.y()));
     return relativeCoord;
 }
-void MainWindow::wheelEvent(QEvent *event) {
+void MainWindow::wheelEvent(QEvent *event) const {
     auto e = dynamic_cast<QWheelEvent *>(event);
     if (e->angleDelta().y() < 0) {
         ui->zoomIn->click();
@@ -74,7 +93,7 @@ void MainWindow::wheelEvent(QEvent *event) {
         ui->zoomOut->click();
     }
 }
-void MainWindow::mouseEvent(QEvent *event) {
+void MainWindow::mouseEvent(QEvent *event) const {
     static bool isPressed = false;
     static QPoint lastPressed;
     auto e = dynamic_cast<QMouseEvent *>(event);
@@ -91,19 +110,20 @@ void MainWindow::mouseEvent(QEvent *event) {
         if (!isPressed) {
             return;
         }
-        int dx = e->pos().x() - lastPressed.x();
-        int dy = e->pos().y() - lastPressed.y();
+        const int dx = e->pos().x() - lastPressed.x();
+        const int dy = e->pos().y() - lastPressed.y();
         lastPressed = e->pos();
-        auto h = ui->graphicsView->horizontalScrollBar();
-        auto v = ui->graphicsView->verticalScrollBar();
+        const auto h = ui->graphicsView->horizontalScrollBar();
+        const auto v = ui->graphicsView->verticalScrollBar();
         h->setValue(-dx + h->value());
         v->setValue(-dy + v->value());
     }
 }
 
 
-void MainWindow::init() {
-    MapReader reader(":/road_vector/resource/tug_map.xml");
+
+void MainWindow::init(MapReader &map_reader) {
+    MapReader &reader = map_reader;
     ways = reader.getWays();
     for (const auto &item: ways) {
         if (item.contain("building")) {
@@ -125,28 +145,43 @@ void MainWindow::init() {
             text->setZValue(3);
             temp.setY(temp.y());
             scene->addEllipse(temp.x(), temp.y(), 10, 10, color, QColor(123, 143, 4))->setZValue(2);
+
+            ui->destinationCombo->addItem(c.value(), QVariant::fromValue(temp));
+            ui->originalCombo->addItem(c.value(), QVariant::fromValue(temp));
         }
+        // for (auto path_id : item.path_ids) {
+        //     ui->destinationCombo->addItem(path_id, QVariant::fromValue(this->adjacency_list.get_location(path_id)));
+        //     ui->originalCombo->addItem(path_id, QVariant::fromValue(this->adjacency_list.get_location(path_id)));
+        // }
+
+
+        // ui->originalCombo->addItem(item.id, QVariant::fromValue(temp));
 //
 //        QGraphicsItem *text = scene->addText(item.id);
 //        center.setX(center.x() - text->boundingRect().size().width() / 2);
 //        center.setY(center.y() - text->boundingRect().size().height() / 2);
 //        text->setPos(center);
-
     }
 
+    // for (auto high_way : this->map_reader.getHighWays()) {
+    //     auto point = this->adjacency_list.get_location(high_way);
+    //     const auto graphics_ellipse_item = scene->addEllipse(point.x() - 10, point.y() - 10, 20, 20, color, QColor(255, 0, 0));
+    //     graphics_ellipse_item->setZValue(2);
+    //     graphics_ellipse_item->setToolTip(high_way);
+    //     graphics_ellipse_item->setData(123, QVariant::fromValue(high_way));
+    // }
+
 }
 
 
 
 
-void MainWindow::on_zoomIn_clicked() {
+void MainWindow::on_zoomIn_clicked() const {
     ui->graphicsView->scale(0.9, 0.9);
-
-
 }
 
 
-void MainWindow::on_zoomOut_clicked() {
+void MainWindow::on_zoomOut_clicked() const {
 
     ui->graphicsView->scale(1.1, 1.1);
 
@@ -169,7 +204,7 @@ void MainWindow::drawLack(const WayNode &node) {
     scene->addPolygon(poly, color, c);
 }
 
-void MainWindow::drawRoad(const WayNode &node) {
+void MainWindow::drawRoad(const WayNode &node) const {
     QPainterPath path(transformer(node.paths[0]));
     for (int i = 1; i < node.paths.size(); ++i) {
         path.lineTo(transformer(node.paths[i]));
@@ -196,5 +231,158 @@ MainWindow::~MainWindow() {
 
 
 
+QString MainWindow::closest_point(QPointF current) {
+    const auto &highways = this->map_reader.getHighWays();
+    return *std::min_element(highways.begin(), highways.end(), [&current, this] (auto &a, auto &b) {
+        const QPointF a_point =  adjacency_list.get_location(a);
+        const QPointF b_point =  adjacency_list.get_location(b);
+        const qreal distance1 = euclidean_distance(current, a_point);
+        const qreal distance2 = euclidean_distance(current, b_point);
+        return distance1 < distance2;
+    });
+}
 
+QVector<QString> MainWindow::find_way(const QString& original_node, const QString& dest_node) {
+    const int algorithm_index = ui->algorithmCombo->currentIndex();
+    if (algorithm_index == 0) {
+        return this->adjacency_list.dijkstra(original_node, dest_node);
+    } else {
+        return this->adjacency_list.a_star(original_node, dest_node);
+    }
+}
+
+void MainWindow::choose_mode() {
+    const auto destination = ui->destinationCombo->currentData().value<QPointF>();
+    const auto original = ui->originalCombo->currentData().value<QPointF>();
+    if (destination == original) {
+        QMessageBox::critical(this, QString("禁止原地TP"), "不允许选择同一个地点，请不要选择同一个地点");
+        return;
+    }
+
+    const auto original_node = closest_point(original);
+    const auto dest_node = closest_point(destination);
+
+
+    // auto original_node = ui->destinationCombo->currentText();
+    // auto dest_node = ui->originalCombo->currentText();
+
+
+
+    const auto &path = find_way(original_node, dest_node);
+
+    qDebug() << path;
+
+
+
+    QPainterPath q_path(original);
+    for (const auto &id : path) {
+        q_path.lineTo(this->adjacency_list.get_location(id));
+    }
+    q_path.lineTo(destination);
+
+    if (this->path != nullptr) {
+        scene->removeItem(this->path);
+    }
+
+    this->path = scene->addPath(q_path, QPen(QColor(0, 255, 0), 4));
+}
+
+
+void MainWindow::click_mode() {
+    const QPointF &original = original_item->scenePos();
+    const QPointF &destination = destination_item->scenePos();
+
+    const auto original_node = closest_point(original);
+    const auto dest_node = closest_point(destination);
+
+    // auto original_node = ui->destinationCombo->currentText();
+    // auto dest_node = ui->originalCombo->currentText();
+
+    const auto &path = find_way(original_node, dest_node);
+
+    qDebug() << path;
+
+
+
+    QPainterPath q_path(original);
+    for (const auto &id : path) {
+        q_path.lineTo(this->adjacency_list.get_location(id));
+    }
+    q_path.lineTo(destination);
+
+    if (this->path != nullptr) {
+        scene->removeItem(this->path);
+    }
+
+    this->path = scene->addPath(q_path, QPen(QColor(0, 255, 0), 4));
+}
+
+void MainWindow::on_startBtn_clicked() {
+    bool enable_click = ui->enableBox->isChecked();
+
+    if (enable_click) {
+
+    } else {
+        choose_mode();
+    }
+
+}
+
+
+void MainWindow::on_enableBox_stateChanged(const int arg1) const {
+    ui->originBtn->setDisabled(!arg1);
+    ui->destBtn->setDisabled(!arg1);
+    ui->originalCombo->setDisabled(arg1);
+    ui->destinationCombo->setDisabled(arg1);
+}
+
+
+void MainWindow::on_clearBtn_clicked() {
+    if (this->path != nullptr) {
+        scene->removeItem(this->path);
+        scene = nullptr;
+    }
+}
+
+void MainWindow::markPosition(QGraphicsSceneMouseEvent *event)  {
+    if (addOriginalEnabled) {
+        // 获取鼠标点击的坐标
+        const QPointF &point = event->scenePos();
+
+        // 创建一个小圆点并将其添加到场景中
+        this->original_item = this->scene->addEllipse(point.x() - 5, point.y() - 5, 10, 10, QPen(), Qt::red);
+    } else if (addDestinationEnabled) {
+        // 获取鼠标点击的坐标
+        const QPointF &point = event->scenePos();
+
+        // 创建一个小圆点并将其添加到场景中
+        this->original_item = this->scene->addEllipse(point.x() - 5, point.y() - 5, 10, 10, QPen(), Qt::blue);
+    }
+    this->addDestinationEnabled = false;
+    this->addOriginalEnabled = false;
+}
+
+void MainWindow::on_originBtn_clicked() {
+    this->addOriginalEnabled = true;
+}
+
+
+void MainWindow::on_destBtn_clicked() {
+    this->addDestinationEnabled = true;
+}
+
+
+void MainWindow::on_originalCombo_currentIndexChanged(int index) const {
+    const auto &original = ui->originalCombo->currentData().value<QPointF>();
+    ui->graphicsView->centerOn(original);
+    on_zoomOut_clicked();
+
+}
+
+
+void MainWindow::on_destinationCombo_currentIndexChanged(int index) const {
+    const auto &destination = ui->destinationCombo->currentData().value<QPointF>();
+    ui->graphicsView->centerOn(destination);
+    on_zoomOut_clicked();
+}
 

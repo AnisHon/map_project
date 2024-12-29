@@ -22,9 +22,11 @@ class Transformer {
 public:
     double scale = 1;
     QPointF center;
-    QPointF mercatorToScreen(const QPointF &lonlat);
-    Transformer(double scale_ = 1, QPointF center_ = {120, 30});
-    QPointF operator()(const QPointF &lonlat);
+
+    QPointF mercatorToScreen(const QPointF& lonlat) const;
+
+    explicit Transformer(double scale_ = 1, QPointF center_ = {120, 30});
+    QPointF operator()(const QPointF &lonlat) const;
 };
 
 

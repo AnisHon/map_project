@@ -2,13 +2,9 @@
 
 #include <utility>
 
-#include <QFile>
-#include <QDebug>
-#include <QStringView>
 #include <QString>
 #include <QtXml>
-#include <QtXml/QDomDocument>
-#include <QDomNodeList>
+
 MapReader::MapReader(QString path): path_(std::move(path)) {
     init();
 }
@@ -29,15 +25,15 @@ void MapReader::init() {
     }
     readNode(dom.elementsByTagName("node"));
     readWay(dom.elementsByTagName("way"));
-
+    filterHighWay();
 }
 
 void MapReader::readNode(const QDomNodeList &nodes) {
     for (int i = 0; i < nodes.length(); ++i) {
         const auto & node = nodes.at(i);
-        auto id = node.attributes().namedItem("id").toAttr().value();
-        auto lat = node.attributes().namedItem("lat").toAttr().value();
-        auto lon = node.attributes().namedItem("lon").toAttr().value();
+        const auto id = node.attributes().namedItem("id").toAttr().value();
+        const auto lat = node.attributes().namedItem("lat").toAttr().value();
+        const auto lon = node.attributes().namedItem("lon").toAttr().value();
         nodes_.insert(id, MapNode(id, lon, lat));
         if (node.hasChildNodes()) {
             WayNode wayNode(id);
@@ -61,7 +57,9 @@ void MapReader::readWay(const QDomNodeList &list) {
         WayNode wayNode(node.attributes().namedItem("id").nodeValue());
 
         while (!nodeDom.isNull()) {
-            wayNode.addPath(nodes_[nodeDom.attribute("ref")].getCoordinates());
+            auto map_node = nodes_[nodeDom.attribute("ref")];
+            wayNode.path_ids.append(map_node.id);
+            wayNode.addPath(map_node.getCoordinates());
             nodeDom = nodeDom.nextSiblingElement("nd");
         }
         nodeDom = node.firstChildElement("tag");
@@ -73,7 +71,28 @@ void MapReader::readWay(const QDomNodeList &list) {
     }
 }
 
+void MapReader::filterHighWay() {
+    for (const WayNode &way : this->ways_) {
+        if (!way.contain("highway")) {
+            continue;
+        }
+        if (way.tags["highway"] != "service") {
+            continue;
+        }
+        for (const auto &path_id : way.path_ids) {
+            this->highways_.push_back(path_id);
+        }
+    }
+
+}
+
 QVector<WayNode> MapReader::getWays() {
     return ways_;
 }
+
+QVector<QString> MapReader::getHighWays() {
+
+    return this->highways_;
+}
+
 

@@ -19,6 +19,10 @@ set(PROJECT_SOURCES
         mainwindow.ui
         coordinate_transformation.h
         coordinate_transformation.cpp
+        MapAdjacencyList.h
+        MapAdjacencyList.cpp
+        distance_utils.h
+        distance_utils.cpp
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
@@ -61,7 +65,7 @@ set_target_properties(map_project PROPERTIES
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
     MACOSX_BUNDLE TRUE
-    WIN32_EXECUTABLE TRUE
+#    WIN32_EXECUTABLE TRUE
 )
 
 include(GNUInstallDirs)
