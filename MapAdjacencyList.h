@@ -32,10 +32,28 @@ struct Location {
 class MapAdjacencyList {
 
 private:
+
+    struct DijkstraTable {
+        QString id;
+        bool is_known;
+        qreal distance;
+        QString prev;
+    };
+
+
     void init(MapReader& reader);
+
+    void init_connect_nodes(const QVector<QString>& ids);
+
+    QHash<QString, DijkstraTable> build_dijkstra_table(const QString &original);
+
+    static QString min_node(const QHash<QString, DijkstraTable> &table);
+
+    static qreal heuristic_function(qreal weight, qreal heuristic);
 
 public:
     explicit MapAdjacencyList(const MapReader &reader, const Transformer &transformer);
+
 
     bool is_connected(const QString &id1, const QString &id2) const;
 
@@ -45,13 +63,23 @@ public:
 
     void connect(const QString &id1, const QString &id2);
 
+    QHash<QString, qreal> get_connected(const QString& id);
+
     qreal get_weight(const QString &id1, const QString &id2) const;
 
-    void init_connect_nodes(const QVector<QString>& ids);
 
+    QPointF get_location(const QString &id) const;
+
+    QVector<QString> dijkstra(const QString &original, const QString &destination);
+
+    QVector<QString> a_star(const QString &original, const QString &destination);
+
+
+    void clear();
 private:
     QHash<QString, Location> locations_;
     Transformer transform_;
+    MapReader map_reader_;
 
 };
 

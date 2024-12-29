@@ -6,6 +6,10 @@
 
 #include "coordinate_transformation.h"
 #include "distance_utils.h"
+#include <limits>
+#include <qstack.h>
+#include <QDebug>
+#include <queue>
 
 bool MapAdjacencyList::is_connected(const QString &id1, const QString &id2) const {
     if (id1 == id2) {
@@ -27,6 +31,11 @@ bool MapAdjacencyList::is_connected(const QString &id1, const QString &id2) cons
 
 
 }
+
+void MapAdjacencyList::clear() {
+    this->locations_.clear();
+}
+
 
 void MapAdjacencyList::add_location(const ScreenNode &node) {
     if (this->locations_.contains(node.id)) {
@@ -91,16 +100,17 @@ void MapAdjacencyList::init_connect_nodes(const QVector<QString> &ids) {
 
 void MapAdjacencyList::init(MapReader& reader) {
     const auto &nodes = reader.getNodes();
+    const auto &highway = reader.getHighWays();
 
     const Transformer &coordinate_transformation = this->transform_;
 
 
     // 像邻接表中添加元素，进行mercator坐标到平面坐标转换
-    for (const auto &node : nodes) {
-        const QPointF &point = node.getCoordinates();
+    for (const auto &way : highway) {
+        const QPointF &point = nodes[way].getCoordinates();
         const QPointF &screen_point = coordinate_transformation.mercatorToScreen(point);
 
-        add_location(ScreenNode{node.id, screen_point});
+        add_location(ScreenNode{way, screen_point});
     }
 
 
@@ -113,8 +123,236 @@ void MapAdjacencyList::init(MapReader& reader) {
 
 MapAdjacencyList::MapAdjacencyList(const MapReader& reader, const Transformer &transformer):
     locations_{QHash<QString, Location>()},
-    transform_{transformer} {
+    transform_{transformer},
+    map_reader_(reader) {
     this->init(const_cast<MapReader&>(reader));
 }
+
+QPointF MapAdjacencyList::get_location(const QString& id) const {
+    return this->locations_[id].node.position;
+}
+
+QHash<QString, qreal> MapAdjacencyList::get_connected(const QString& id) {
+    return this->locations_[id].weights;
+}
+
+
+QHash<QString, MapAdjacencyList::DijkstraTable> MapAdjacencyList::build_dijkstra_table(const QString &original) {
+    QHash<QString, DijkstraTable> result;
+    constexpr qreal max = std::numeric_limits<qreal>::max();
+
+    for (const auto &high_way : map_reader_.getHighWays()) {
+        result[high_way] = DijkstraTable{high_way, false, max, ""};
+    }
+
+    // result[original].is_known = true;
+    result[original].distance = 0;
+
+    // for (auto [id, is_known, distance, prev] : result) {
+    //     qDebug() << id.toStdString() << " " << " " << is_known  << " " << prev.toStdString() << "\t\t" << distance;
+    // }
+    // qDebug() << "=============================";
+    return result;
+}
+
+QString MapAdjacencyList::min_node(const QHash<QString, DijkstraTable> &table) {
+    if (table.empty()) {
+        return "";
+    }
+
+    qreal min = std::numeric_limits<qreal>::max();
+    QString result;
+
+    for (const auto &node : table) {
+        if (node.is_known) {
+            continue;
+        }
+
+        if (min > node.distance) {
+            min = node.distance;
+            result = node.id;
+        }
+    }
+    // const auto row = table[result];
+    // qDebug() << result;
+    // qDebug() << row.id << "\t" << row.is_known << "\t" << row.distance << "\t" << row.prev;
+
+
+    if (result.isEmpty()) {
+        qDebug() << "MapAdjacencyList::min_node: No node found";
+    }
+    return result;
+
+}
+
+
+QVector<QString> MapAdjacencyList::dijkstra(const QString& original, const QString& destination) {
+    auto table = build_dijkstra_table(original);
+    qDebug() << "original" << original << " destination" << destination;
+    // 获取最小元素
+    QString min_id;
+    while (!(min_id = min_node(table)).isEmpty()) {
+
+        // 遍历节点，connected_nodes是一个存储权重的Hash表
+        auto connected_nodes = this->get_connected(min_id);
+
+        // 当前节点的表行
+        DijkstraTable &curr_row = table[min_id];
+        curr_row.is_known = true;
+
+        if (min_id == destination) {
+            break;
+        }
+
+        for (const auto &id : connected_nodes.keys()) {
+
+            // 邻接节点的表行
+            DijkstraTable &row = table[id];
+
+            // qDebug() << row.id << "\t" << row.is_known << "\t" << row.distance << "\t" << row.prev;
+            if (row.is_known) {
+                continue;
+            }
+
+            // distance_ = distance + weight
+            const qreal distance = curr_row.distance + connected_nodes[id];
+
+            if (distance < row.distance) {
+                row.distance = distance;
+                row.prev = min_id;
+            }
+
+        }
+
+        // for (auto [id, is_known, distance, prev] : table) {
+        //
+        //     // qDebug() << id.toStdString() << " " << " " << is_known  << " " << prev.toStdString() << "\t\t" << distance;
+        // }
+
+
+    }
+    // for (auto row : table) {
+    //     if (!row.is_known) {
+    //         continue;
+    //     }
+    //     qDebug() << row.id << " " << " " << row.is_known << row.distance << " " << row.prev;
+    // }
+
+    QStack<QString> stack{};
+    QVector<QString> path{};
+
+
+    if (!table[destination].is_known) {
+        qDebug() << "Destination not known";
+        return path;
+    }
+
+    stack.push(destination);
+    while (stack.top() != original) {
+        stack.push(table[stack.top()].prev);
+    }
+
+
+
+    while (!stack.isEmpty()) {
+
+        path.emplace_back(stack.top());
+        stack.pop();
+    }
+
+    return path;
+}
+
+qreal MapAdjacencyList::heuristic_function(const qreal weight, const qreal heuristic) {
+    if (weight == std::numeric_limits<qreal>::max()) {
+        return std::numeric_limits<qreal>::max();
+    }
+    return weight + heuristic;
+}
+
+QVector<QString> MapAdjacencyList::a_star(const QString& original, const QString& destination) {
+
+    // 初始化启发函数和权重
+    QHash<QString, qreal> weights{}, heuristic{};
+    QHash<QString, QString> path;
+    QSet<QString> close{};
+
+    const auto destination_point = this->get_location(destination);
+    for (auto id : this->map_reader_.getHighWays()) {
+        weights[id] = std::numeric_limits<qreal>::max();
+        heuristic[id] = euclidean_distance(get_location(id), destination_point);
+    }
+    weights[original] = 0;
+
+    // 优先队列，按照启发 函数 + 权重排序（小根堆）
+    const auto compare = [this, &weights, &heuristic] (const QString &id1, const QString &id2) -> bool {
+        const qreal heuristic1 = weights[id1] + heuristic[id1];
+        const qreal heuristic2 = weights[id2] + heuristic[id2];
+        return heuristic1 > heuristic2;
+    };
+    std::priority_queue<QString, std::vector<QString>, decltype(compare)> queue(compare);
+
+    queue.push(original);
+
+    while (!queue.empty()) {
+        const QString id = queue.top();
+        queue.pop();
+
+        if (close.contains(id)) {
+            continue;
+        }
+        close.insert(id);
+
+        if (id == destination) {
+            break;
+        }
+
+
+        const auto &connected = this->get_connected(id);
+        for (auto key : connected.keys()) {
+            // 总权重
+            const qreal weight = connected[key] + weights[id];
+
+            // 启发式函数计算
+            const qreal new_f = heuristic_function(weight, heuristic[key]);
+            const qreal old_f = heuristic_function(weights[key], heuristic[key]);
+
+            if (new_f > old_f) {
+                continue;
+            }
+            weights[key] = weight;
+            queue.push(key);
+            path[key] = id;
+        }
+    }
+
+    QStack<QString> stack;
+    if (path.contains(destination)) {
+        QString current = destination;
+        while (current != original) {
+            stack.push_back(current);
+            current = path[current];
+        }
+    }
+    stack.append(original);
+
+    QVector<QString> result;
+
+    while (!stack.isEmpty()) {
+        const QString id = stack.top();
+        stack.pop();
+        result.push_back(id);
+    }
+
+
+    return result;
+}
+
+
+
+
+
+
+
 
 

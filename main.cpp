@@ -14,10 +14,17 @@ int main(int argc, char *argv[])
 
 
 
+
+
+
+
     MapReader reader(":/road_vector/resource/tug_map.xml");
     const auto& transform = Transformer(1, {117, 39});
+    // MapAdjacencyList mdl{reader, transform};
 
-    MapAdjacencyList adjacency{reader, transform};
+    // mdl.clear();
+
+
     MainWindow w(reader, transform);
     w.show();
 
