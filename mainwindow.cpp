@@ -20,8 +20,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->graphicsView->viewport()->installEventFilter(this);
     ui->graphicsView->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     ui->graphicsView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    transformer = Transformer(1, {117, 39});
-
+    transformer = Transformer(2, {118, 40});
     auto c = this->palette().base().color();
     color = QColor(255 - c.red(), 255 - c.green(), 255 - c.blue());
     init();
