@@ -48,7 +48,7 @@ private slots:
 
     void pinchGestureEvent(QGestureEvent* event);
 
-    void markPosition(const QGraphicsSceneMouseEvent* event);
+    void markPosition(const QMouseEvent* event);
 
     void on_originBtn_clicked();
 

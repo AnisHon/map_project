@@ -21,6 +21,8 @@ MainWindow::MainWindow(MapReader &map_reader, const Transformer &transform, QWid
     , addOriginalEnabled(false)
     , addDestinationEnabled(false)
     , isTouch(false)
+    , destination_item(nullptr)
+    , original_item(nullptr)
     , ui(new Ui::MainWindow) {
 
 
@@ -34,14 +36,13 @@ MainWindow::MainWindow(MapReader &map_reader, const Transformer &transform, QWid
     ui->graphicsView->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     ui->graphicsView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     ui->graphicsView->grabGesture(Qt::PinchGesture);
-
     auto c = this->palette().base().color();
     color = QColor(255 - c.red(), 255 - c.green(), 255 - c.blue());
     init(map_reader);
 
     ui->originBtn->setDisabled(true);
     ui->destBtn->setDisabled(true);
-    ui->enableBox->setDisabled(true);
+    // ui->enableBox->setDisabled(true);
 
     // grabGesture(Qt::GestureType::PinchGesture);
 }
@@ -55,9 +56,8 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
             this->pinchGestureEvent(dynamic_cast<QGestureEvent*>(event));
             break;
         case QEvent::GraphicsSceneMousePress:
-            this->markPosition(dynamic_cast<QGraphicsSceneMouseEvent *>(event));
         case QEvent::MouseButtonPress:
-
+            this->markPosition(dynamic_cast<QMouseEvent *>(event));
         case QEvent::MouseButtonRelease:
         case QEvent::MouseMove:
             mouseEvent(event);
@@ -315,8 +315,12 @@ void MainWindow::choose_mode() {
 
 
 void MainWindow::click_mode() {
-    const QPointF &original = original_item->scenePos();
-    const QPointF &destination = destination_item->scenePos();
+    if (!original_item || !destination_item) {
+        QMessageBox::critical(this, "错误的起点终点", "您没有选起点或终点");
+        return;
+    }
+    const QPointF &original = original_item->data(114514).toPointF();
+    const QPointF &destination = destination_item->data(114514).toPointF();
 
     const auto original_node = closest_point(original);
     const auto dest_node = closest_point(destination);
@@ -367,7 +371,18 @@ void MainWindow::on_clearBtn_clicked() {
     if (this->path != nullptr) {
         scene->removeItem(this->path);
     }
+    if (this->original_item) {
+        scene->removeItem(this->original_item);
+    }
+
+    if (this->destination_item) {
+        scene->removeItem(this->destination_item);
+    }
+
     this->path = nullptr;
+    this->original_item = nullptr;
+    this->destination_item = nullptr;
+
 }
 
 void MainWindow::pinchGestureEvent(QGestureEvent *event) {
@@ -382,19 +397,26 @@ void MainWindow::pinchGestureEvent(QGestureEvent *event) {
     }
 }
 
-void MainWindow::markPosition(const QGraphicsSceneMouseEvent *event)  {
+void MainWindow::markPosition(const QMouseEvent* event)  {
+    const QPointF &point = ui->graphicsView->mapToScene(event->pos());
+
     if (addOriginalEnabled) {
-        // 获取鼠标点击的坐标
-        const QPointF &point = event->scenePos();
-
         // 创建一个小圆点并将其添加到场景中
+        if (this->original_item) {
+            scene->removeItem(original_item);
+        }
         this->original_item = this->scene->addEllipse(point.x() - 5, point.y() - 5, 10, 10, QPen(), Qt::red);
+        this->original_item->setData(114514, QVariant::fromValue(point));
+        this->original_item->setZValue(3);
     } else if (addDestinationEnabled) {
-        // 获取鼠标点击的坐标
-        const QPointF &point = event->scenePos();
-
         // 创建一个小圆点并将其添加到场景中
-        this->original_item = this->scene->addEllipse(point.x() - 5, point.y() - 5, 10, 10, QPen(), Qt::blue);
+        if (this->destination_item) {
+            scene->removeItem(destination_item);
+        }
+
+        this->destination_item = this->scene->addEllipse(point.x() - 5, point.y() - 5, 10, 10, QPen(), Qt::blue);
+        this->destination_item->setData(114514, QVariant::fromValue(point));
+        this->destination_item->setZValue(3);
     }
     this->addDestinationEnabled = false;
     this->addOriginalEnabled = false;
