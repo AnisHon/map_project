@@ -3,13 +3,12 @@
 #include "coordinate_transformation.h"
 
 #include <QGraphicsItem>
-#include <QEvent>
 
-#include <QWheelEvent>
 #include <QScrollBar>
 #include <QMessageBox>
 
 #include <QGraphicsSceneMouseEvent>
+#include <QGesture>
 
 #include "distance_utils.h"
 
@@ -21,6 +20,7 @@ MainWindow::MainWindow(MapReader &map_reader, const Transformer &transform, QWid
     , adjacency_list{map_reader, transform}
     , addOriginalEnabled(false)
     , addDestinationEnabled(false)
+    , isTouch(false)
     , ui(new Ui::MainWindow) {
 
 
@@ -33,7 +33,7 @@ MainWindow::MainWindow(MapReader &map_reader, const Transformer &transform, QWid
     ui->graphicsView->viewport()->installEventFilter(this);
     ui->graphicsView->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     ui->graphicsView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-
+    ui->graphicsView->grabGesture(Qt::PinchGesture);
 
     auto c = this->palette().base().color();
     color = QColor(255 - c.red(), 255 - c.green(), 255 - c.blue());
@@ -41,30 +41,34 @@ MainWindow::MainWindow(MapReader &map_reader, const Transformer &transform, QWid
 
     ui->originBtn->setDisabled(true);
     ui->destBtn->setDisabled(true);
+    ui->enableBox->setDisabled(true);
 
+    // grabGesture(Qt::GestureType::PinchGesture);
 }
 
 bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
 //    if (watched != ui->graphicsView) {
 //        return QObject::eventFilter(watched, event);
 //    }
-
-
-
-
     switch (event->type()) {
+        case QEvent::Gesture:
+            this->pinchGestureEvent(dynamic_cast<QGestureEvent*>(event));
+            break;
+        case QEvent::GraphicsSceneMousePress:
+            this->markPosition(dynamic_cast<QGraphicsSceneMouseEvent *>(event));
         case QEvent::MouseButtonPress:
 
         case QEvent::MouseButtonRelease:
-            this->markPosition(dynamic_cast<QGraphicsSceneMouseEvent*>(event));
         case QEvent::MouseMove:
             mouseEvent(event);
             break;
         case QEvent::Wheel:
             wheelEvent(event);
             break;
+
         default: ;
     }
+    // qDebug() << "pinchGestureEvent;
 
     switch (event->type()) {
         case QEvent::MouseButtonPress:
@@ -87,11 +91,33 @@ QPointF mapToRelative(const QPointF mapCoord, const QPointF mapTopLeft, QPointF 
 }
 void MainWindow::wheelEvent(QEvent *event) const {
     auto e = dynamic_cast<QWheelEvent *>(event);
-    if (e->angleDelta().y() < 0) {
-        ui->zoomIn->click();
+
+    const int delta = e->angleDelta().x();
+    const int horizontalDelta = e->angleDelta().y();
+    const auto h = ui->graphicsView->horizontalScrollBar();
+    const auto v = ui->graphicsView->verticalScrollBar();
+
+    if (isTouch) {
+
+        // if (delta != 0) {
+            // qDebug() << "delta";
+
+        v->setValue(v->value() - horizontalDelta / 8);
+        h->setValue(h->value() - delta / 8);
+        // }
+        // if (horizontalDelta != 0) {
+            // qDebug() << "horizontalDelta";
+
+
+        // }
     } else {
-        ui->zoomOut->click();
+        if (e->angleDelta().y() < 0) {
+            ui->zoomIn->click();
+        } else {
+            ui->zoomOut->click();
+        }
     }
+
 }
 void MainWindow::mouseEvent(QEvent *event) const {
     static bool isPressed = false;
@@ -321,7 +347,7 @@ void MainWindow::on_startBtn_clicked() {
     bool enable_click = ui->enableBox->isChecked();
 
     if (enable_click) {
-
+        click_mode();
     } else {
         choose_mode();
     }
@@ -340,11 +366,23 @@ void MainWindow::on_enableBox_stateChanged(const int arg1) const {
 void MainWindow::on_clearBtn_clicked() {
     if (this->path != nullptr) {
         scene->removeItem(this->path);
-        scene = nullptr;
+    }
+    this->path = nullptr;
+}
+
+void MainWindow::pinchGestureEvent(QGestureEvent *event) {
+    // 获取 Pinch 手势
+
+    auto* pinch = dynamic_cast<QPinchGesture*>(event->gesture(Qt::PinchGesture));
+    if (pinch) {
+        // 获取缩放因子
+        qreal scaleFactor = pinch->scaleFactor();
+        // 根据缩放因子进行缩放
+        ui->graphicsView->scale(scaleFactor, scaleFactor);
     }
 }
 
-void MainWindow::markPosition(QGraphicsSceneMouseEvent *event)  {
+void MainWindow::markPosition(const QGraphicsSceneMouseEvent *event)  {
     if (addOriginalEnabled) {
         // 获取鼠标点击的坐标
         const QPointF &point = event->scenePos();
@@ -384,5 +422,10 @@ void MainWindow::on_destinationCombo_currentIndexChanged(int index) const {
     const auto &destination = ui->destinationCombo->currentData().value<QPointF>();
     ui->graphicsView->centerOn(destination);
     on_zoomOut_clicked();
+}
+
+
+void MainWindow::on_touchBox_stateChanged(const int arg1) {
+    isTouch = arg1;
 }
 

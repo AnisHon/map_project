@@ -1,6 +1,7 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include <qgesture.h>
 #include <QMainWindow>
 #include <QGraphicsScene>
 #include <QVector>
@@ -45,7 +46,9 @@ private slots:
 
     void on_clearBtn_clicked();
 
-    void markPosition(QGraphicsSceneMouseEvent* event);
+    void pinchGestureEvent(QGestureEvent* event);
+
+    void markPosition(const QGraphicsSceneMouseEvent* event);
 
     void on_originBtn_clicked();
 
@@ -54,6 +57,8 @@ private slots:
     void on_originalCombo_currentIndexChanged(int index) const;
 
     void on_destinationCombo_currentIndexChanged(int index) const;
+
+    void on_touchBox_stateChanged(int arg1);
 
 private:
     void init(MapReader& map_reader);
@@ -82,6 +87,7 @@ private:
     QGraphicsPathItem *path;
     bool addOriginalEnabled;
     bool addDestinationEnabled;
+    bool isTouch;
     QGraphicsEllipseItem *original_item;
     QGraphicsEllipseItem *destination_item;
 

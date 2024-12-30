@@ -152,6 +152,13 @@
         </layout>
        </item>
        <item>
+        <widget class="QCheckBox" name="touchBox">
+         <property name="text">
+          <string>启用触控板模式</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QPushButton" name="startBtn">
          <property name="text">
           <string>开始导航</string>
