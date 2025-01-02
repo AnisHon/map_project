@@ -23,6 +23,7 @@ set(PROJECT_SOURCES
         MapAdjacencyList.cpp
         distance_utils.h
         distance_utils.cpp
+        KDNode2D.h
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)

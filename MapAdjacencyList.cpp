@@ -137,6 +137,11 @@ QHash<QString, qreal> MapAdjacencyList::get_connected(const QString& id) {
 }
 
 
+/**
+ * 构建初始状态表格，只有original的distance是0其他都是max，所有的is_known都是false
+ * @param original 起点
+ * @return 初始状态的表格
+ */
 QHash<QString, MapAdjacencyList::DijkstraTable> MapAdjacencyList::build_dijkstra_table(const QString &original) {
     QHash<QString, DijkstraTable> result;
     constexpr qreal max = std::numeric_limits<qreal>::max();
@@ -155,6 +160,11 @@ QHash<QString, MapAdjacencyList::DijkstraTable> MapAdjacencyList::build_dijkstra
     return result;
 }
 
+/**
+ * 获取当前状态table中未访问过且目前可达的最小元素的ID
+ * @param table 当前状态表格
+ * @return 最小元素的ID 没有返回空字符串 “”
+ */
 QString MapAdjacencyList::min_node(const QHash<QString, DijkstraTable> &table) {
     if (table.empty()) {
         return "";
@@ -173,11 +183,6 @@ QString MapAdjacencyList::min_node(const QHash<QString, DijkstraTable> &table) {
             result = node.id;
         }
     }
-    // const auto row = table[result];
-    // qDebug() << result;
-    // qDebug() << row.id << "\t" << row.is_known << "\t" << row.distance << "\t" << row.prev;
-
-
     if (result.isEmpty()) {
         qDebug() << "MapAdjacencyList::min_node: No node found";
     }
@@ -186,6 +191,12 @@ QString MapAdjacencyList::min_node(const QHash<QString, DijkstraTable> &table) {
 }
 
 
+/**
+ * dijkstra寻路算法
+ * @param original 起点
+ * @param destination 终点
+ * @return 路径列表
+ */
 QVector<QString> MapAdjacencyList::dijkstra(const QString& original, const QString& destination) {
     auto table = build_dijkstra_table(original);
     qDebug() << "original" << original << " destination" << destination;
@@ -223,20 +234,7 @@ QVector<QString> MapAdjacencyList::dijkstra(const QString& original, const QStri
             }
 
         }
-
-        // for (auto [id, is_known, distance, prev] : table) {
-        //
-        //     // qDebug() << id.toStdString() << " " << " " << is_known  << " " << prev.toStdString() << "\t\t" << distance;
-        // }
-
-
     }
-    // for (auto row : table) {
-    //     if (!row.is_known) {
-    //         continue;
-    //     }
-    //     qDebug() << row.id << " " << " " << row.is_known << row.distance << " " << row.prev;
-    // }
 
     QStack<QString> stack{};
     QVector<QString> path{};
@@ -263,6 +261,12 @@ QVector<QString> MapAdjacencyList::dijkstra(const QString& original, const QStri
     return path;
 }
 
+/**
+ * 启发式函数获取结果，保证无限的启发式距离永远是无限（目前其实是最大不是inf）
+ * @param weight 当前权重
+ * @param heuristic 当前启发式函数结果
+ * @return
+ */
 qreal MapAdjacencyList::heuristic_function(const qreal weight, const qreal heuristic) {
     if (weight == std::numeric_limits<qreal>::max()) {
         return std::numeric_limits<qreal>::max();
@@ -270,15 +274,21 @@ qreal MapAdjacencyList::heuristic_function(const qreal weight, const qreal heuri
     return weight + heuristic;
 }
 
+/**
+ * A*寻路算法
+ * @param original 起点ID
+ * @param destination 终点ID
+ * @return 路径ID列表
+ */
 QVector<QString> MapAdjacencyList::a_star(const QString& original, const QString& destination) {
 
-    // 初始化启发函数和权重
+    // 初始化启发函数和权重 路径 闭合列表（防止重复访问）
     QHash<QString, qreal> weights{}, heuristic{};
     QHash<QString, QString> path;
     QSet<QString> close{};
 
     const auto destination_point = this->get_location(destination);
-    for (auto id : this->map_reader_.getHighWays()) {
+    for (const auto& id : this->map_reader_.getHighWays()) {
         weights[id] = std::numeric_limits<qreal>::max();
         heuristic[id] = euclidean_distance(get_location(id), destination_point);
     }

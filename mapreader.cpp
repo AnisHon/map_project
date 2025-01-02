@@ -91,7 +91,7 @@ QVector<WayNode> MapReader::getWays() {
 }
 
 QVector<QString> MapReader::getHighWays() {
-
+    
     return this->highways_;
 }
 

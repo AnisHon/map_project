@@ -7,6 +7,8 @@
 #include "MapAdjacencyList.h"
 #include <QDebug>
 
+#include "KDNode2D.h"
+
 int main(int argc, char *argv[])
 {
 
@@ -20,9 +22,14 @@ int main(int argc, char *argv[])
 
     MapReader reader(":/road_vector/resource/tug_map.xml");
     const auto& transform = Transformer(1, {117, 39});
-    // MapAdjacencyList mdl{reader, transform};
+    MapAdjacencyList mdl{reader, transform};
 
-    // mdl.clear();
+
+
+
+
+
+
 
 
     MainWindow w(reader, transform);

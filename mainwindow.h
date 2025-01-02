@@ -8,6 +8,7 @@
 #include "waynode.h"
 #include "mapreader.h"
 #include "coordinate_transformation.h"
+#include "KDNode2D.h"
 #include "MapAdjacencyList.h"
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -15,11 +16,13 @@ class MainWindow;
 }
 QT_END_NAMESPACE
 
-class MainWindow : public QMainWindow
+class MainWindow final : public QMainWindow
 {
     Q_OBJECT
 
 public:
+    using KDTree = KDTree2D<qreal, QString>;
+
     MainWindow(
             MapReader& map_reader,
             const Transformer &transform = Transformer(1, {117, 39}),
@@ -27,7 +30,7 @@ public:
         );
     ~MainWindow();
 
-    QString closest_point(QPointF current);
+    QString closest_point(const QPointF& current);
 
     QVector<QString> find_way(const QString& original_node, const QString& dest_node);
 
@@ -46,7 +49,7 @@ private slots:
 
     void on_clearBtn_clicked();
 
-    void pinchGestureEvent(QGestureEvent* event);
+    void pinchGestureEvent(const QGestureEvent* event) const;
 
     void markPosition(const QMouseEvent* event);
 
@@ -60,8 +63,11 @@ private slots:
 
     void on_touchBox_stateChanged(int arg1);
 
+
 private:
     void init(MapReader& map_reader);
+
+    void initKdTree();
 
     void drawLack(const WayNode &node);
 
@@ -90,6 +96,6 @@ private:
     bool isTouch;
     QGraphicsEllipseItem *original_item;
     QGraphicsEllipseItem *destination_item;
-
+    KDTree *kd_tree_;
 };
 #endif // MAINWINDOW_H

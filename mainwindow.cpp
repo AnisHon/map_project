@@ -23,6 +23,7 @@ MainWindow::MainWindow(MapReader &map_reader, const Transformer &transform, QWid
     , isTouch(false)
     , destination_item(nullptr)
     , original_item(nullptr)
+    , kd_tree_(nullptr)
     , ui(new Ui::MainWindow) {
 
 
@@ -45,6 +46,22 @@ MainWindow::MainWindow(MapReader &map_reader, const Transformer &transform, QWid
     // ui->enableBox->setDisabled(true);
 
     // grabGesture(Qt::GestureType::PinchGesture);
+
+
+    initKdTree();
+}
+
+void MainWindow::initKdTree() {
+
+    const auto points = this->map_reader.getHighWays();
+    std::vector<KDTree::Pair> treeNode;
+    treeNode.reserve(points.size());
+    for (const auto &high_way : points) {
+        const auto point = this->adjacency_list.get_location(high_way);
+        treeNode.push_back(KDTree::Pair{point.x(), point.y(), high_way});
+    }
+
+    this->kd_tree_ = new KDTree(treeNode);
 }
 
 bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
@@ -253,11 +270,12 @@ void MainWindow::drawBuilding(const WayNode &node) {
 MainWindow::~MainWindow() {
     delete scene;
     delete ui;
+    delete kd_tree_;
 }
 
 
 
-QString MainWindow::closest_point(QPointF current) {
+QString MainWindow::closest_point(const QPointF &current) {
     const auto &highways = this->map_reader.getHighWays();
     return *std::min_element(highways.begin(), highways.end(), [&current, this] (auto &a, auto &b) {
         const QPointF a_point =  adjacency_list.get_location(a);
@@ -266,10 +284,12 @@ QString MainWindow::closest_point(QPointF current) {
         const qreal distance2 = euclidean_distance(current, b_point);
         return distance1 < distance2;
     });
+    // return kd_tree_->find_closest(current.x(), current.y());
 }
 
 QVector<QString> MainWindow::find_way(const QString& original_node, const QString& dest_node) {
     const int algorithm_index = ui->algorithmCombo->currentIndex();
+    qDebug() << "algorithm: " << (algorithm_index == 0 ? "dijkstra" : "A*");
     if (algorithm_index == 0) {
         return this->adjacency_list.dijkstra(original_node, dest_node);
     } else {
@@ -385,13 +405,13 @@ void MainWindow::on_clearBtn_clicked() {
 
 }
 
-void MainWindow::pinchGestureEvent(QGestureEvent *event) {
+void MainWindow::pinchGestureEvent(const QGestureEvent *event) const {
     // 获取 Pinch 手势
 
     auto* pinch = dynamic_cast<QPinchGesture*>(event->gesture(Qt::PinchGesture));
     if (pinch) {
         // 获取缩放因子
-        qreal scaleFactor = pinch->scaleFactor();
+        const qreal scaleFactor = pinch->scaleFactor();
         // 根据缩放因子进行缩放
         ui->graphicsView->scale(scaleFactor, scaleFactor);
     }
